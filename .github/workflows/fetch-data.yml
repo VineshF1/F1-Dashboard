@@ -1,7 +1,7 @@
 name: Fetch F1 Data
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 permissions:

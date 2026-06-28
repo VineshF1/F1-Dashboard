@@ -7,7 +7,7 @@ Output goes to ./data/
 
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
 import fastf1
@@ -47,7 +47,8 @@ def get_round_info(year):
     next_round = None
     for _, r in schedule.iterrows():
         race_date = _to_utc(r['EventDate'])
-        if race_date <= now:
+        race_over = race_date + timedelta(days=1)
+        if race_over <= now:
             current = int(r['RoundNumber'])
         elif next_round is None:
             next_round = int(r['RoundNumber'])
@@ -123,7 +124,8 @@ def generate_standings(year):
 
     for _, race in schedule.iterrows():
         race_date = _to_utc(race['EventDate'])
-        if race_date >= now:
+        race_over = race_date + timedelta(days=1)
+        if race_over >= now:
             break
         round_num = int(race['RoundNumber'])
         try:
@@ -237,7 +239,8 @@ def main():
     generated = 0
     for _, race in schedule.iterrows():
         race_date = _to_utc(race['EventDate'])
-        if race_date >= now:
+        race_over = race_date + timedelta(days=1)
+        if race_over >= now:
             break
         round_num = int(race['RoundNumber'])
         result = generate_race_result(YEAR, round_num)
