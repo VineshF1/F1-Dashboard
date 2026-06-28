@@ -675,7 +675,6 @@ body::after {
   font-size: 9px;
   color: var(--ink-3);
   letter-spacing: .14em;
-  text-transform: uppercase;
   margin-bottom: 4px;
   font-weight: 500;
 }
@@ -1705,7 +1704,7 @@ const API_BASE = 'https://VineshF1.github.io/F1-Dashboard';
   setTimeout(() => {
     const next = document.querySelector('.cal-round.next');
     if (next) {
-      const strip = document.getElementById('calStrip');
+      const strip = document.getElementById('calendarContainer');
       strip.scrollTo({ left: next.offsetLeft - 60, behavior: 'smooth' });
     }
   }, 5000);
@@ -2033,11 +2032,30 @@ loadLastRaceResults();
 // Load last race results with points for Paddock section
 async function loadFullRaceResults() {
   try {
-    const response = await fetch(API_BASE + "/last-race.json");
+    // Determine last completed race from calendar.json (Monday 00:00 UTC)
+    const calRes = await fetch(API_BASE + "/calendar.json");
+    const calData = await calRes.json();
+    const races = calData.races;
+    const now = Date.now();
+
+    let lastRace = null;
+    for (const race of races) {
+      const raceDate = new Date(race.date + "T00:00:00Z").getTime();
+      const raceMonday = raceDate + 86400000;
+      if (raceMonday <= now) {
+        lastRace = race;
+      } else {
+        break;
+      }
+    }
+
+    if (!lastRace) return;
+
+    // Fetch race results for the last completed round
+    const response = await fetch(API_BASE + "/race-" + lastRace.round + ".json");
     const data = await response.json();
     const race = data.race;
-    if (!race) return;
-    const results = data.results;
+    const results = data.results || [];
 
     const container = document.getElementById("resultsContainer");
     container.innerHTML = "";
@@ -2135,13 +2153,28 @@ async function updateRaceHero() {
   try {
 
     const response = await fetch(
-      API_BASE + "/next-race.json"
+      API_BASE + "/calendar.json"
     );
 
     const data = await response.json();
-    const race = data;
-    const round = parseInt(race.round);
-    const totalRaces = race.totalRaces;
+    const races = data.races;
+    const totalRaces = races.length;
+    const now = Date.now();
+
+    /* FIND NEXT RACE — Monday 00:00 UTC cutoff */
+    let nextRace = null;
+    for (const race of races) {
+      const raceDate = new Date(race.date + "T00:00:00Z").getTime();
+      const raceMonday = raceDate + 86400000;
+      if (raceMonday > now) {
+        nextRace = race;
+        break;
+      }
+    }
+
+    if (!nextRace) return;
+
+    const round = parseInt(nextRace.round);
 
     /*
       ROUND BADGE · RACE NAME · CIRCUIT · TOTAL RACES · FLAG
@@ -2150,10 +2183,10 @@ async function updateRaceHero() {
       .innerHTML = `◆ Round ${String(round).padStart(2, "0")} · Up Next`;
 
     document.querySelector(".race-name")
-      .innerHTML = `${race.raceName.replace("Grand Prix", "<em>Grand Prix</em>")}`;
+      .innerHTML = `${nextRace.raceName.replace("Grand Prix", "<em>Grand Prix</em>")}`;
 
     document.querySelectorAll(".race-circuit")[0]
-      .innerHTML = `<strong>${race.circuit}</strong>`;
+      .innerHTML = `<strong>${nextRace.location}</strong>`;
 
     document.querySelectorAll(".race-circuit")[1]
       .innerHTML = `Round ${round} of ${totalRaces}`;
@@ -2161,7 +2194,7 @@ async function updateRaceHero() {
     /*
       CIRCUIT INFO STATS
     */
-    const info = circuitInfo[race.raceName];
+    const info = circuitInfo[nextRace.raceName];
     const statVals = document.querySelectorAll(".race-stat-val");
     if (info && statVals.length >= 3) {
       statVals[0].innerText = info.fastestLap;
@@ -2172,11 +2205,20 @@ async function updateRaceHero() {
     /*
       LIVE COUNTDOWN
     */
-    const raceDate = new Date(race.date + "T15:00:00Z");
+    const raceDate = new Date(nextRace.date + "T15:00:00Z");
+    let cdInterval;
 
     function updateCountdown() {
       const diff = raceDate - new Date();
-      if (diff <= 0) return;
+      if (diff <= 0) {
+        document.getElementById("cd-d").textContent = "00";
+        document.getElementById("cd-h").textContent = "00";
+        document.getElementById("cd-m").textContent = "00";
+        document.getElementById("cd-s").textContent = "00";
+        document.querySelector(".countdown-label").textContent = "RACE STARTED";
+        clearInterval(cdInterval);
+        return;
+      }
       document.getElementById("cd-d").textContent = String(Math.floor(diff / 86400000)).padStart(2, "0");
       document.getElementById("cd-h").textContent = String(Math.floor((diff % 86400000) / 3600000)).padStart(2, "0");
       document.getElementById("cd-m").textContent = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
@@ -2184,7 +2226,7 @@ async function updateRaceHero() {
     }
 
     updateCountdown();
-    setInterval(updateCountdown, 1000);
+    cdInterval = setInterval(updateCountdown, 1000);
 
   }
 
@@ -2216,25 +2258,25 @@ async function loadCalendar() {
 
     container.innerHTML = "";
 
-    const now = new Date();
+    const now = Date.now();
 
     /*
-      FIND NEXT RACE
+      FIND NEXT RACE — a race is "done" only on Monday 00:00 UTC after it
     */
     let nextRound = null;
 
-    races.forEach((race,index)=>{
+    for(let i = 0; i < races.length; i++){
 
-      const raceDate =
-        new Date(race.date);
+      const race = races[i];
+      const raceDate = new Date(race.date + "T00:00:00Z").getTime();
+      const raceMonday = raceDate + 86400000; // Monday 00:00 UTC
 
-      if(!nextRound && raceDate > now) {
-
-        nextRound = index + 1;
-
+      if(raceMonday > now) {
+        nextRound = i + 1;
+        break;
       }
 
-    });
+    }
 
     /*
       BUILD CALENDAR
@@ -2341,7 +2383,7 @@ async function loadCalendar() {
         </div>
 
         <div class="cal-country">
-          ${country}
+          ${race.country}
         </div>
 
         <div class="cal-flag-name">
@@ -2637,24 +2679,48 @@ async function loadStatsRibbon() {
     if (!ribbon) return;
 
     /*
-      FETCH STANDINGS + LAST RACE IN PARALLEL
+      FETCH STANDINGS + CALENDAR IN PARALLEL
     */
-    const [standingsRes, raceRes] = await Promise.all([
+    const [standingsRes, calRes] = await Promise.all([
       fetch(API_BASE + "/standings.json"),
-      fetch(API_BASE + "/last-race.json")
+      fetch(API_BASE + "/calendar.json")
     ]);
 
     const standingsJson = await standingsRes.json();
-    const raceJson = await raceRes.json();
+    const calData = await calRes.json();
 
     const standings = standingsJson.drivers;
     if (!standings || standings.length === 0) return;
 
     const leader = standings[0];
-    const second = standings[1];
 
-    const race = raceJson.race;
-    const winner = race && raceJson.results ? raceJson.results[0] : null;
+    // Determine last completed race from calendar.json
+    const now = Date.now();
+    let lastRace = null;
+    for (const race of calData.races) {
+      const raceDate = new Date(race.date + "T00:00:00Z").getTime();
+      const raceMonday = raceDate + 86400000;
+      if (raceMonday <= now) {
+        lastRace = race;
+      } else {
+        break;
+      }
+    }
+
+    // Try to get last race winner
+    let winner = null;
+    let season = calData.year || 2026;
+    if (lastRace) {
+      try {
+        const raceRes = await fetch(API_BASE + "/race-" + lastRace.round + ".json");
+        const raceData = await raceRes.json();
+        if (raceData.results && raceData.results.length > 0) {
+          winner = raceData.results[0];
+        }
+      } catch(e) {
+        // ignore
+      }
+    }
 
     ribbon.innerHTML = `
 
@@ -2685,7 +2751,7 @@ async function loadStatsRibbon() {
         </div>
 
         <div class="stat-sub">
-          ${race ? race.raceName : "—"}
+          ${lastRace ? lastRace.raceName : "—"}
         </div>
 
       </div>
@@ -2713,7 +2779,7 @@ async function loadStatsRibbon() {
         </div>
 
         <div class="stat-big">
-          ${race ? race.season : "2026"}
+          ${season}
         </div>
 
         <div class="stat-sub">

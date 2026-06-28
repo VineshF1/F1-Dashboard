@@ -47,8 +47,9 @@ def get_round_info(year):
     next_round = None
     for _, r in schedule.iterrows():
         race_date = _to_utc(r['EventDate'])
-        race_over = race_date + timedelta(days=1)
-        if race_over <= now:
+        # Race is considered complete on Monday 00:00 UTC
+        monday_utc = race_date + timedelta(days=1)
+        if monday_utc <= now:
             current = int(r['RoundNumber'])
         elif next_round is None:
             next_round = int(r['RoundNumber'])
@@ -124,8 +125,8 @@ def generate_standings(year):
 
     for _, race in schedule.iterrows():
         race_date = _to_utc(race['EventDate'])
-        race_over = race_date + timedelta(days=1)
-        if race_over >= now:
+        monday_utc = race_date + timedelta(days=1)
+        if monday_utc >= now:
             break
         round_num = int(race['RoundNumber'])
         try:
@@ -239,8 +240,8 @@ def main():
     generated = 0
     for _, race in schedule.iterrows():
         race_date = _to_utc(race['EventDate'])
-        race_over = race_date + timedelta(days=1)
-        if race_over >= now:
+        monday_utc = race_date + timedelta(days=1)
+        if monday_utc >= now:
             break
         round_num = int(race['RoundNumber'])
         result = generate_race_result(YEAR, round_num)
