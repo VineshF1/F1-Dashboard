@@ -9,7 +9,7 @@ Supports multi-season: append ?year=YYYY to any endpoint.
 import os
 import time
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
 import fastf1
@@ -17,7 +17,11 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
+
+# Reuse scraping functions from generate_data
+from generate_data import _scrape_f1_standings, _enrich_driver_codes
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -95,9 +99,22 @@ def load_session(year, round_num):
 
 def _compute_standings(year=2026):
     """
-    Compute cumulative driver and constructor standings by loading each
-    completed race session and summing points.
+    Driver and constructor standings scraped from the official F1 website.
+    Falls back to FastF1 if scraping fails.
     """
+    drivers, constructors = _scrape_f1_standings(year)
+    if drivers:
+        drivers = _enrich_driver_codes(drivers, year)
+    else:
+        # Fallback to FastF1
+        return _compute_standings_fastf1(year)
+    return {
+        "drivers": drivers,
+        "constructors": constructors or _compute_standings_fastf1(year)["constructors"],
+    }
+
+
+def _compute_standings_fastf1(year=2026):
     schedule = get_schedule(year)
     now = _utc_now()
 
@@ -332,6 +349,15 @@ def api_index():
     if os.path.exists(INDEX_PATH):
         return FileResponse(INDEX_PATH)
     return {"error": "index.html not found", "path": INDEX_PATH}
+
+
+@app.get("/{file_name:path}")
+def api_static(file_name: str):
+    """Serve static JSON files from the data directory."""
+    data_path = os.path.join(STATIC_DIR, "data", file_name)
+    if os.path.isfile(data_path) and file_name.endswith(".json"):
+        return FileResponse(data_path, media_type="application/json")
+    return {"error": "Not found"}
 
 
 if __name__ == "__main__":

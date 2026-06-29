@@ -28,7 +28,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install fastf1 pandas
+        run: pip install fastf1 pandas requests beautifulsoup4 lxml
 
       - name: Generate data files
         run: python generate_data.py

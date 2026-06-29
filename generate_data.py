@@ -7,11 +7,14 @@ Output goes to ./data/
 
 import os
 import json
+import re
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
 import fastf1
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 
 CACHE_DIR = os.path.join(os.environ.get('TEMP', '/tmp'), 'pitwall_cache')
@@ -115,8 +118,115 @@ def generate_next_race(year):
     }
 
 
+def _scrape_f1_standings(year):
+    """Scrape driver and constructor standings from the official F1 website."""
+    BASE = "https://www.formula1.com/en/results"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    drivers, constructors = [], []
+
+    try:
+        # Drivers
+        resp = requests.get(f"{BASE}/{year}/drivers", headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        table = soup.find("table")
+        if table:
+            for row in table.find_all("tr")[1:]:
+                cols = row.find_all("td")
+                if len(cols) >= 5:
+                    name = cols[1].get_text(strip=True)
+                    # Split name like "KimiAntonelli" into first/last
+                    parts = re.findall(r'[A-Z][a-z]+', name)
+                    first = parts[0] if parts else name
+                    last = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    drivers.append({
+                        "position": int(cols[0].get_text(strip=True)),
+                        "firstName": first,
+                        "lastName": last,
+                        "code": "",  # filled below from FastF1
+                        "team": cols[3].get_text(strip=True),
+                        "number": "",
+                        "points": float(cols[4].get_text(strip=True)),
+                    })
+    except Exception as e:
+        print(f"[WARN] Could not scrape driver standings: {e}")
+
+    try:
+        # Constructors
+        resp = requests.get(f"{BASE}/{year}/team", headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        table = soup.find("table")
+        if table:
+            for row in table.find_all("tr")[1:]:
+                cols = row.find_all("td")
+                if len(cols) >= 3:
+                    constructors.append({
+                        "position": int(cols[0].get_text(strip=True)),
+                        "name": cols[1].get_text(strip=True),
+                        "points": float(cols[2].get_text(strip=True)),
+                    })
+    except Exception as e:
+        print(f"[WARN] Could not scrape constructor standings: {e}")
+
+    return drivers, constructors
+
+
+def _enrich_driver_codes(drivers, year):
+    """Fill in driver codes and numbers from FastF1 session data."""
+    try:
+        schedule = fastf1.get_event_schedule(year)
+        schedule = schedule[schedule['RoundNumber'] > 0]
+        if not schedule.empty:
+            first_round = int(schedule.iloc[0]['RoundNumber'])
+            session = fastf1.get_session(year, first_round, 'R')
+            session.load(telemetry=False, laps=False, messages=False, weather=False)
+            if session.results is not None:
+                lookup = {}
+                for _, r in session.results.iterrows():
+                    name = f"{r['FirstName']} {r['LastName']}"
+                    lookup[name.lower()] = {
+                        'code': r['Abbreviation'],
+                        'number': str(r['DriverNumber']),
+                    }
+                    # Also index by just last name
+                    lookup[r['LastName'].lower()] = {
+                        'code': r['Abbreviation'],
+                        'number': str(r['DriverNumber']),
+                    }
+                for d in drivers:
+                    key = f"{d['firstName']} {d['lastName']}".lower()
+                    if key in lookup:
+                        d['code'] = lookup[key]['code']
+                        d['number'] = lookup[key]['number']
+                    elif d['lastName'].lower() in lookup:
+                        d['code'] = lookup[d['lastName'].lower()]['code']
+                        d['number'] = lookup[d['lastName'].lower()]['number']
+    except Exception as e:
+        print(f"[WARN] Could not enrich driver codes: {e}")
+    return drivers
+
+
 def generate_standings(year):
-    """Cumulative driver and constructor standings."""
+    """Driver and constructor standings scraped from the official F1 website."""
+    drivers, constructors = _scrape_f1_standings(year)
+
+    # Enrich with driver codes/numbers from FastF1
+    if drivers:
+        drivers = _enrich_driver_codes(drivers, year)
+    else:
+        # Fallback: use FastF1 computation
+        print("[WARN] Scraping failed, falling back to FastF1 standings")
+        return _generate_standings_fastf1(year)
+
+    return {
+        "year": year,
+        "cached_at": _utc_now().isoformat(),
+        "drivers": drivers,
+        "constructors": constructors or _generate_standings_fastf1(year)["constructors"],
+    }
+
+
+def _generate_standings_fastf1(year):
+    """Fallback: compute standings from FastF1 session data."""
     schedule = get_schedule(year)
     now = _utc_now()
     driver_points = defaultdict(float)

@@ -1686,7 +1686,9 @@ body.colo-open { overflow: hidden; }
    PIT WALL · F1 Dashboard
    Data sourced from local Python server (FastF1 + F1 API)
    ============================================================ */
-const API_BASE = 'https://VineshF1.github.io/F1-Dashboard';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? (window.location.port === '5500' || window.location.port === '5501' ? '/data' : '')
+  : 'https://VineshF1.github.io/F1-Dashboard';
 
 (function(){
   const now = new Date();
