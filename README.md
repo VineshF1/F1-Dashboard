@@ -26,23 +26,6 @@ Personal F1 dashboard that pulls race results, standings, and calendar from the 
 - **Race results & calendar** loaded via FastF1 (official F1 API)
 - **Cutoff logic:** Races are considered complete on **Monday 12 AM IST** (Sun 18:30 UTC)
 
-## Local Development
-
-```bash
-# Start the API + static file server
-python server.py
-
-# Or use VS Code Live Server on index.html
-# (API_BASE auto-detects Live Server vs FastAPI server)
-```
-
-Open `http://localhost:8766` (FastAPI) or `http://127.0.0.1:5500/index.html` (Live Server).
-
-For initial data generation:
-```bash
-python generate_data.py
-```
-
 ## Tech Stack
 
 - **Frontend:** Vanilla HTML, CSS, JavaScript
