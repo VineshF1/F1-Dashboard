@@ -1,7 +1,8 @@
 name: Fetch F1 Data
 on:
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '30 18 * * 0'   # Sunday 18:30 UTC = Monday 12 AM IST
+    - cron: '0 */4 * * *'    # Every 4 hours
   workflow_dispatch:
 
 permissions:

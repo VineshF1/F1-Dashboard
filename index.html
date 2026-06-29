@@ -2032,7 +2032,7 @@ loadLastRaceResults();
 // Load last race results with points for Paddock section
 async function loadFullRaceResults() {
   try {
-    // Determine last completed race from calendar.json (Monday 00:00 UTC)
+    // Determine last completed race from calendar.json (Monday 12 AM IST)
     const calRes = await fetch(API_BASE + "/calendar.json");
     const calData = await calRes.json();
     const races = calData.races;
@@ -2041,8 +2041,8 @@ async function loadFullRaceResults() {
     let lastRace = null;
     for (const race of races) {
       const raceDate = new Date(race.date + "T00:00:00Z").getTime();
-      const raceMonday = raceDate + 86400000;
-      if (raceMonday <= now) {
+      const raceCutoff = raceDate + 66600000;
+      if (raceCutoff <= now) {
         lastRace = race;
       } else {
         break;
@@ -2092,7 +2092,28 @@ async function loadFullRaceResults() {
 }
 
 loadFullRaceResults();
+/* country → flag emoji */
+function getFlag(country) {
+  const map = {
+    "Australia":"🇦🇺","Austria":"🇦🇹","Azerbaijan":"🇦🇿",
+    "Bahrain":"🇧🇭","Belgium":"🇧🇪","Brazil":"🇧🇷",
+    "Canada":"🇨🇦","China":"🇨🇳",
+    "Hungary":"🇭🇺",
+    "Italy":"🇮🇹",
+    "Japan":"🇯🇵",
+    "Mexico":"🇲🇽","Monaco":"🇲🇨",
+    "Netherlands":"🇳🇱",
+    "Portugal":"🇵🇹","Qatar":"🇶🇦",
+    "Saudi Arabia":"🇸🇦","Singapore":"🇸🇬","Spain":"🇪🇸",
+    "United Arab Emirates":"🇦🇪","United Kingdom":"🇬🇧","United States":"🇺🇸",
+    "USA":"🇺🇸","UK":"🇬🇧","UAE":"🇦🇪",
+    "Great Britain":"🇬🇧","SaudiArabia":"🇸🇦",
+    "Miami":"🇺🇸","Las Vegas":"🇺🇸"
+  };
+  return map[country] || "🏁";
+}
 
+<!-- CIRCUIT INFO DATABASE -->
 const circuitInfo = {
 
   "Canadian Grand Prix": {
@@ -2129,25 +2150,6 @@ const circuitInfo = {
 
 };
 
-/* flag emoji map — matches full country names from FastF1 API */
-const FLAG_MAP = {
-  "Australia":"🇦🇺", "Austria":"🇦🇹", "Azerbaijan":"🇦🇿",
-  "Bahrain":"🇧🇭", "Belgium":"🇧🇪", "Brazil":"🇧🇷",
-  "Canada":"🇨🇦", "China":"🇨🇳",
-  "Hungary":"🇭🇺",
-  "Italy":"🇮🇹",
-  "Japan":"🇯🇵",
-  "Mexico":"🇲🇽", "Monaco":"🇲🇨",
-  "Netherlands":"🇳🇱",
-  "Portugal":"🇵🇹", "Qatar":"🇶🇦",
-  "Saudi Arabia":"🇸🇦", "Singapore":"🇸🇬", "Spain":"🇪🇸",
-  "United Arab Emirates":"🇦🇪", "United Kingdom":"🇬🇧", "United States":"🇺🇸",
-  /* aliases for backward compat */
-  "USA":"🇺🇸", "UK":"🇬🇧", "UAE":"🇦🇪",
-  "Great Britain":"🇬🇧", "SaudiArabia":"🇸🇦",
-  "Miami":"🇺🇸", "Las Vegas":"🇺🇸"
-};
-
 async function updateRaceHero() {
 
   try {
@@ -2161,12 +2163,12 @@ async function updateRaceHero() {
     const totalRaces = races.length;
     const now = Date.now();
 
-    /* FIND NEXT RACE — Monday 00:00 UTC cutoff */
+    /* FIND NEXT RACE — Monday 12 AM IST cutoff */
     let nextRace = null;
     for (const race of races) {
       const raceDate = new Date(race.date + "T00:00:00Z").getTime();
-      const raceMonday = raceDate + 86400000;
-      if (raceMonday > now) {
+      const raceCutoff = raceDate + 66600000;
+      if (raceCutoff > now) {
         nextRace = race;
         break;
       }
@@ -2261,7 +2263,7 @@ async function loadCalendar() {
     const now = Date.now();
 
     /*
-      FIND NEXT RACE — a race is "done" only on Monday 00:00 UTC after it
+      FIND NEXT RACE — a race is "done" only on Monday 12 AM IST after it
     */
     let nextRound = null;
 
@@ -2269,9 +2271,9 @@ async function loadCalendar() {
 
       const race = races[i];
       const raceDate = new Date(race.date + "T00:00:00Z").getTime();
-      const raceMonday = raceDate + 86400000; // Monday 00:00 UTC
+      const raceCutoff = raceDate + 66600000; // Monday 12 AM IST (18:30 UTC Sunday)
 
-      if(raceMonday > now) {
+      if(raceCutoff > now) {
         nextRound = i + 1;
         break;
       }
@@ -2315,7 +2317,7 @@ async function loadCalendar() {
       const country =
         race.country;
 
-      const flag = FLAG_MAP[country] || "🏁";
+      const flag = getFlag(country);
 
       /*
         NEXT LABEL
@@ -2699,8 +2701,8 @@ async function loadStatsRibbon() {
     let lastRace = null;
     for (const race of calData.races) {
       const raceDate = new Date(race.date + "T00:00:00Z").getTime();
-      const raceMonday = raceDate + 86400000;
-      if (raceMonday <= now) {
+      const raceCutoff = raceDate + 66600000;
+      if (raceCutoff <= now) {
         lastRace = race;
       } else {
         break;

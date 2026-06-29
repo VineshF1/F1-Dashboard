@@ -75,7 +75,9 @@ def get_round_info(year=2026):
 
     for _, r in schedule.iterrows():
         race_date = _to_utc(r['EventDate'])
-        if race_date <= now:
+        # Race is considered complete on Monday 12 AM IST (18:30 UTC Sunday)
+        cutoff_ist = race_date + timedelta(hours=18, minutes=30)
+        if cutoff_ist <= now:
             current = int(r['RoundNumber'])
         elif next_round is None:
             next_round = int(r['RoundNumber'])
@@ -110,7 +112,8 @@ def _compute_standings(year=2026):
 
     for _, race in schedule.iterrows():
         race_date = _to_utc(race['EventDate'])
-        if race_date >= now:
+        cutoff_ist = race_date + timedelta(hours=18, minutes=30)
+        if cutoff_ist > now:
             break
 
         round_num = int(race['RoundNumber'])
