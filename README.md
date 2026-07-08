@@ -32,3 +32,9 @@ Personal F1 dashboard that pulls race results, standings, and calendar from the 
 - **Backend:** Python FastAPI + FastF1 (race data), BeautifulSoup (standings scraping)
 - **Deployment:** GitHub Actions → GitHub Pages (static JSON files)
 - **No API keys needed**
+
+## Author
+
+**Vinesh**
+
+Built with ❤️
