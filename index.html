@@ -2094,25 +2094,27 @@ async function loadFullRaceResults() {
 }
 
 loadFullRaceResults();
-/* country → flag emoji */
+/* country → flag via flagcdn.com (works on Windows) */
 function getFlag(country) {
-  const map = {
-    "Australia":"🇦🇺","Austria":"🇦🇹","Azerbaijan":"🇦🇿",
-    "Bahrain":"🇧🇭","Belgium":"🇧🇪","Brazil":"🇧🇷",
-    "Canada":"🇨🇦","China":"🇨🇳",
-    "Hungary":"🇭🇺",
-    "Italy":"🇮🇹",
-    "Japan":"🇯🇵",
-    "Mexico":"🇲🇽","Monaco":"🇲🇨",
-    "Netherlands":"🇳🇱",
-    "Portugal":"🇵🇹","Qatar":"🇶🇦",
-    "Saudi Arabia":"🇸🇦","Singapore":"🇸🇬","Spain":"🇪🇸",
-    "United Arab Emirates":"🇦🇪","United Kingdom":"🇬🇧","United States":"🇺🇸",
-    "USA":"🇺🇸","UK":"🇬🇧","UAE":"🇦🇪",
-    "Great Britain":"🇬🇧","SaudiArabia":"🇸🇦",
-    "Miami":"🇺🇸","Las Vegas":"🇺🇸"
+  const isoMap = {
+    "Australia":"au","Austria":"at","Azerbaijan":"az",
+    "Bahrain":"bh","Belgium":"be","Brazil":"br",
+    "Canada":"ca","China":"cn",
+    "Hungary":"hu",
+    "Italy":"it",
+    "Japan":"jp",
+    "Mexico":"mx","Monaco":"mc",
+    "Netherlands":"nl",
+    "Portugal":"pt","Qatar":"qa",
+    "Saudi Arabia":"sa","Singapore":"sg","Spain":"es",
+    "United Arab Emirates":"ae","United Kingdom":"gb","United States":"us",
+    "USA":"us","UK":"gb","UAE":"ae",
+    "Great Britain":"gb","SaudiArabia":"sa",
+    "Miami":"us","Las Vegas":"us"
   };
-  return map[country] || "🏁";
+  const iso = isoMap[country];
+  if (!iso) return "����";
+  return `<img src="https://flagcdn.com/h24/${iso}.png" alt="${country}" style="width:auto;height:24px;display:inline-block;vertical-align:middle;">`;
 }
 
 <!-- CIRCUIT INFO DATABASE -->
