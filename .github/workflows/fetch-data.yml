@@ -4,6 +4,13 @@ on:
     - cron: '30 18 * * 0'   # Sunday 18:30 UTC = Monday 12 AM IST
     - cron: '0 */4 * * *'    # Every 4 hours
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'generate_data.py'
+      - 'server.py'
+      - '.github/workflows/fetch-data.yml'
 
 permissions:
   contents: read
@@ -12,11 +19,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   generate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,6 +40,7 @@ jobs:
 
       - name: Generate data files
         run: python generate_data.py
+        timeout-minutes: 25
 
       - name: Prepare Pages output
         run: |
